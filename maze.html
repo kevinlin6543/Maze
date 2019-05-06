@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+precision mediump float;
+attribute vec4 vPosition;
+attribute vec4 vNormal;
+attribute vec2 vTexCoord;
+
+varying vec4 fColor;
+varying vec2 fTexCoord;
+
+varying vec3 N, L, E, H;
+uniform mat4 sphereModelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 lightModelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+uniform mat4 modelMatrix;
+uniform vec4 spherePosition;
+uniform vec4 lightPosition;
+uniform bool isPhong;
+uniform vec4 ambientProduct;
+uniform vec4 diffuseProduct;
+uniform vec4 specularProduct;
+uniform float shininess;
+varying float distance;
+
+void main()
+{
+    vec3 pos = (modelViewMatrix * vPosition).xyz;
+
+    if(lightPosition.w == 0.0)
+        L = normalize((lightModelViewMatrix* lightPosition).xyz);
+    else
+        L = normalize( (lightModelViewMatrix*lightPosition).xyz - pos );
+
+    E = normalize(-pos);
+    N = normalize( (normalMatrix*vNormal).xyz);
+    H = normalize(L + E);
+
+    distance = length(modelMatrix * vPosition - spherePosition);
+    if (!isPhong) {
+        vec4 ambient = vec4(0,0,0,1);
+
+        if(distance < 5.0){
+            float coef = 1.0 / pow(distance,10.0);
+            if (coef > 2.0)
+                coef = 2.0;
+            ambient = coef * ambientProduct;
+            ambient.w = 1.0;
+        }
+        else
+            ambient = vec4(0,0,0,1);
+
+        float Kd = max( dot(L, N), 0.0 );
+        vec4  diffuse = Kd*diffuseProduct;
+        float Ks = pow( max(dot(N, H), 0.0), shininess );
+        vec4  specular = Ks * specularProduct;
+        if( dot(L, N) < 0.0 )
+            specular = vec4(0.0, 0.0, 0.0, 1.0);
+        fColor = ambient + diffuse +specular;
+        fColor.a = 1.0;
+    }
+    fTexCoord = 1.0 * vTexCoord;
+    gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D texture;
+
+varying vec4 fColor;
+varying vec2 fTexCoord;
+
+uniform vec4 ambientProduct;
+uniform vec4 diffuseProduct;
+uniform vec4 specularProduct;
+uniform float shininess;
+uniform bool isPhong;
+varying vec3 N, L, E, H;
+varying float distance;
+
+void
+main()
+{
+    if(isPhong) {
+        vec4 fColorTemp;
+        vec4 ambient = ambientProduct;
+        if (distance < 2.5){
+            float coef = 1.0 / pow(distance,2.0);
+            if(coef > 1.0)
+                coef = 1.0;
+            ambient = coef * ambientProduct;
+            ambient.w = 1.0;
+        }
+        else
+            ambient = vec4(0,0,0,1);
+        float Kd = max( dot(L, N), 0.0 );
+        vec4  diffuse = Kd*diffuseProduct;
+        float Ks = pow( max(dot(N, H), 0.0), shininess );
+        vec4  specular = Ks * specularProduct;
+        if( dot(L, N) < 0.0 )
+            specular = vec4(0.0, 0.0, 0.0, 1.0);
+        fColorTemp = ambient + diffuse +specular;
+        fColorTemp.a = 1.0;
+        gl_FragColor = fColorTemp;
+    }
+    else
+    {
+        if (distance < 3.5){
+            float coef = 1.0 / pow(distance,3.0);
+            if(coef > 1.0)
+                coef = 1.0;
+            gl_FragColor = coef * texture2D(texture, fTexCoord);
+            gl_FragColor.w = 1.0;
+        }
+        else if(distance > 50.0)
+            gl_FragColor = texture2D(texture, fTexCoord);
+        else
+            gl_FragColor = vec4(0.0,0.0,0.0,1.0);
+    }
+}
+</script>
+
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="initShaders.js"></script>
+<script type="text/javascript" src="MV.js"></script>
+<script type="text/javascript" src="maze.js"></script>
+
+<body>
+<canvas id="gl-canvas" width="1024" height="540">
+Your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<img id = "texImage0" src="stone.jpg" hidden>
+<img id = "texImage100" src="sky.jpg" hidden>
+
+</body>
+</html>
