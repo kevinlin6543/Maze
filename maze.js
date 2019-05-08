@@ -10,8 +10,10 @@ var isTopMode = false;
 var image = [];
 
 var worldIMG;
-var textureSUM = 19;
 var cubePosition = [];
+
+var fileLoaded = false;
+var fileContent;
 
 var maze = [['#','#','#','#','#','#','#','#','#','#'],
             ['#',' ',' ',' ',' ',' ',' ','#',' ','#'],
@@ -33,10 +35,14 @@ var translateMaze = function (maze) {
     }
 };
 
+
 var cube = {
     ambient :  vec4(0.0, 0.5, 0.5, 1.0),
     diffuse :  vec4(1.0, 1.0, 1.0, 1.0),
     specular : vec4(1.0, 1.0, 1.0, 1.0),
+    ambientProduct : vec4(),
+    diffuseProduct : vec4(),
+    specularProduct : vec4(),
     shininess : 30.0,
     isPhong : false,
     center : 1,
@@ -60,9 +66,6 @@ var cube = {
     pointsArray : [],
     normalsArray : [],
     texCoordsArray: [],
-    ambientProduct : vec4(),
-    diffuseProduct : vec4(),
-    specularProduct : vec4(),
     modelMatrix : mat4(),
     modelViewMatrix : mat4(),
     tempModelMatrix: mat4(),
@@ -71,9 +74,10 @@ var cube = {
 cube.init = function() {
     drawCube();
     vTexCoord = gl.getAttribLocation( program, "vTexCoord" );
-    cube.vBuffer = gl.createBuffer();
-    cube.nBuffer = gl.createBuffer();
-    cube.tBuffer = gl.createBuffer();
+
+    cube.vBuffer = gl.createBuffer(); // Vertices
+    cube.nBuffer = gl.createBuffer(); // Normals
+    cube.tBuffer = gl.createBuffer(); // texture buffer
 
     gl.bindBuffer(gl.ARRAY_BUFFER,cube.vBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,flatten(cube.pointsArray),gl.STATIC_DRAW);
@@ -99,24 +103,22 @@ cube.init = function() {
     cube.specularProduct = mult(cube.specular, light.specular);
     worldIMG = document.getElementById("texImage100");
     cube.texture = [];
+    image.push(document.getElementById("texImage0"));
+    cube.texture.push(gl.createTexture());
 
-    for(var k = 0; k < textureSUM; k++) {
-        image.push(document.getElementById("texImage0"));
-        cube.texture .push(gl.createTexture());
+    gl.bindTexture( gl.TEXTURE_2D, cube.texture[0] );
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
-        gl.bindTexture( gl.TEXTURE_2D, cube.texture[k] );
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image[0] );
 
-        gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image[k] );
+    gl.generateMipmap( gl.TEXTURE_2D );
 
-        gl.generateMipmap( gl.TEXTURE_2D );
+    gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR );
+    gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST );
 
-        gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR );
-        gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    }
 
     cube.texture_world = gl.createTexture();
     gl.bindTexture( gl.TEXTURE_2D, cube.texture_world );
@@ -204,16 +206,15 @@ var sphere = {
     ambient : vec4(0.8, 0.1, 0.1, 1.0),
     diffuse : vec4(1.0, 1.0, 1.0, 1.0),
     specular : vec4(1.0, 1.0, 1.0, 1.0),
-    shininess : 30.0,
-    position : vec4(0,-0.45,-3,1),
-    vertexNum : 0,
-    shadingStyle : 3,
-    isPhong : true,
-    pointsArray : [],
-    normalsArray : [],
     ambientProduct : vec4(),
     diffuseProduct : vec4(),
     specularProduct : vec4(),
+    shininess : 30.0,
+    position : vec4(0,-0.45,-3,1),
+    vertexNum : 0,
+    isPhong : true,
+    pointsArray : [],
+    normalsArray : [],
     modelMatrix : mat4(),
     modelViewMatrix : mat4(),
     rollMatrix : mat4(),
@@ -242,8 +243,8 @@ sphere.init = function() {
     gl.bindBuffer(gl.ARRAY_BUFFER,null);
 
     sphere.modelMatrix = mult(scale(sphere.radius,sphere.radius,sphere.radius),mat4());
-    sphere.modelMatrix = mult(translate(2.7,-0.45,1.0), sphere.modelMatrix);
-    sphere.position = vec4(2.7,-0.45,1.0);
+    sphere.modelMatrix = mult(translate(7.8,-0.45,8.0), sphere.modelMatrix);
+    sphere.position = vec4(7.8,-0.45,8.0);
     camera.position = add(sphere.position, vec4(camera.distanceToSphere,0,0,0));
     camera.eye = v4ToV3(camera.position);
     camera.at = v4ToV3(sphere.position);
@@ -323,8 +324,7 @@ sphere.move = function(){
 
 sphere.collisionDetection = function(){
     var cubeHalfDiagonal = (cube.side / 2) * Math.sqrt(2);
-    var a = cubeHalfDiagonal, b = sphere.radius;
-    var c = a + b + sphere.radius;
+    var c = cubeHalfDiagonal + 2*sphere.radius;
     var halfSide = cube.side / 2;
     var collideStatus = false;
     var sphereFuturePosition = add(sphere.position, sphere.speed);
@@ -403,7 +403,6 @@ var basePlane = {
     modelViewMatrix : mat4(),
     position : vec4(0,0,0,1),
     vertexNum : 0,
-    shadingStyle : 3,
     isPhong : true,
     };
 
@@ -484,7 +483,7 @@ basePlane.transPoints = function(){
         }
     }
 };
-// light Object
+
 var light = {
     ambient : vec4(1.0, 1.0, 1.0, 1.0 ),
     diffuse :  vec4( 0.0, 0.0, 0.0, 1.0 ),
@@ -496,7 +495,7 @@ var light = {
 
 var camera = {
     fovy : 45,
-    aspect : 0 ,
+    aspect : 1 ,
     near : 0.3,
     far : 300.0,
     position : vec4(0,0,0,1),
@@ -654,6 +653,15 @@ window.onload = function init() {
     basePlane.init();
     storageObj.getAllUniformLoc()
     camera.projectionMatrix = perspective(camera.fovy, camera.aspect, camera.near, camera.far);
+    document.getElementById( "LoadButton" ).onclick = function () {
+        if (!fileLoaded)
+            alert("Error: Did not enter proper save state");
+        else {
+            maze = fileContent;
+            cubePosition = [];
+            translateMaze(maze);
+        }
+    };
     render();
 };
 function render(){
@@ -661,7 +669,7 @@ function render(){
     sphere.draw();
     basePlane.draw();
     for (var i = 0; i < cubePosition.length; i++) {
-        cube.draw(cubePosition[i], cube.texture[18]);
+        cube.draw(cubePosition[i], cube.texture[0]);
     }
     cube.makeLargeCube();
     setTimeout(function (){requestAnimFrame(render);}, 1000/60 );
@@ -731,8 +739,8 @@ window.onkeydown = function(event){
             case 82:
                 sphere.speed = vec4(0,0,0,0);
                 sphere.modelMatrix = mult(scale(sphere.radius,sphere.radius,sphere.radius),mat4());
-                sphere.modelMatrix = mult(translate(2.7,-0.45,1.0), sphere.modelMatrix);
-                sphere.position = vec4(2.7,-0.45,1.0);
+                sphere.modelMatrix = mult(translate(7.8,-0.45,8.0), sphere.modelMatrix);
+                sphere.position = vec4(7.8,-0.45,8.0);
                 camera.position = add(sphere.position, vec4(camera.distanceToSphere,0,0,0));
                 camera.eye = v4ToV3(camera.position);
                 camera.at = v4ToV3(sphere.position);
@@ -773,8 +781,8 @@ window.onkeydown = function(event){
             case 82:
                 sphere.speed = vec4(0,0,0,0);
                 sphere.modelMatrix = mult(scale(sphere.radius,sphere.radius,sphere.radius),mat4());
-                sphere.modelMatrix = mult(translate(2.7,-0.45,1.0), sphere.modelMatrix);
-                sphere.position = vec4(2.7,-0.45,1.0);
+                sphere.modelMatrix = mult(translate(7.8,-0.45,8.0), sphere.modelMatrix);
+                sphere.position = vec4(7.8,-0.45,8.0);
                 camera.position = add(sphere.position, vec4(camera.distanceToSphere,0,0,0));
                 camera.eye = v4ToV3(camera.position);
                 camera.at = v4ToV3(sphere.position);

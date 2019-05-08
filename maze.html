@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html>
+    <title>Maze</title>
 
 <script id="vertex-shader" type="x-shader/x-vertex">
 precision mediump float;
@@ -131,12 +131,47 @@ main()
 <script type="text/javascript" src="maze.js"></script>
 
 <body>
-<canvas id="gl-canvas" width="1024" height="540">
-Your browser doesn't support the HTML5 canvas element
-</canvas>
+    <canvas id="gl-canvas" width="1024" height="540">
+        Your browser doesn't support the HTML5 canvas element
+    </canvas>
 
-<img id = "texImage0" src="stone.jpg" hidden>
-<img id = "texImage100" src="sky.jpg" hidden>
+    <img id = "texImage0" src="stone.jpg" hidden>
+    <img id = "texImage100" src="sky.jpg" hidden>
+
+
+    <div style="width: 500px;position: absolute;top:575px; left: 1vw">
+        Controls:
+        <br> w : Move Forward
+        <br> a : Move Left
+        <br> s : Move Backward
+        <br> d : Move Right
+        <br> Left Arrow : Rotate Camera Left
+        <br> Right Arrow : Rotate Camera Right
+        <br> t : top view
+    </div>
+    <div style="width: 100px;position: absolute;top:575px; left: 15vw">
+        <input type="file" id="files" name="files[]"/>
+        <output id="list"></output>
+        <script>
+            function handleFileSelect(e) {
+                var files = e.target.files;
+                var reader = new FileReader();
+                f = files[0];
+                reader.onload = (function() {
+                    fileLoaded = true;
+                    return function(e) {
+                        fileContent = reader.result.split("\r\n")
+                                          .map(function(el){ return el.split(" ");});
+                    }
+                })(f);
+                reader.readAsText(f);
+            }
+            document.getElementById('files').addEventListener('change', handleFileSelect, false);
+        </script>
+    </div>
+    <button id= "LoadButton" style="position: absolute; left:425px; top: 575px;width:90px; height:25px;font-size: 16px;">Load File</button>
+
+
 
 </body>
 </html>
